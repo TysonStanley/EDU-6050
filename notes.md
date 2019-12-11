@@ -1,11 +1,16 @@
 # Notes for Future
 
 1. Start off first class by asking why they are there (they have to? they like the topic?)
-2. Keep day 1 short
+2. Chapter Quizzes instead of discussion board
 3. End each lecture with a review "quiz"
-4. Give regression more days
-5. More group/individual activities
-6. Use the board/markers more often
+4. Give regression more days and reduce z-scores and such
+5. Research Portfolio is one article per 'unit' that has the method discussed
+  - No writing it up, just bring it to class
+6. 
+
+
+
+
 
 
 

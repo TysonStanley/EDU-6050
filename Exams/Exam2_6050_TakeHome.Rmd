@@ -1,0 +1,206 @@
+---
+output: 
+  pdf_document:
+    latex_engine: xelatex
+theme: tango
+params:
+  exam: 2
+  year: 2018
+  semester: Spring
+  seed: 84322
+  mcs: 30
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      cache = FALSE,
+                      message = FALSE,
+                      warning = FALSE,
+                      comment = "    ",
+                      fig.height = 3,
+                      fig.width = 5,
+                      fig.align = 'center')
+```
+
+\Huge EDUC 6050 \normalsize  \hfill Name:___________________________
+
+\large Take Home Exam `r params$exam` \normalsize (`r paste(params$semester, params$year)`) \hfill Score:________ /100
+
+\vspace{10pt}
+
+**Directions:** Complete all the questions. As the syllabus says you may use your "printed discussion points, homework, and other notes during examinations." Good luck!
+
+
+```{r questions}
+library(tidyverse)
+library(furniture)
+library(jmv)
+library(here)
+set.seed(params$seed)
+
+capture_jmv <- function(output){
+  out <- capture.output(output)
+  out <- gsub("Independent|test|ANOVA|Samples|T-|Test|Correlation|Matrix", "", out)
+  cat(paste(gsub("─", "-", out), "\n"))
+}
+
+code_chunks <- function(q,num){
+  if (!is.na(q$Code)){
+    cat("\\section{Question", num, "}")
+    if (grepl("ggplot", q$Code)){
+      eval(parse(text = q$Code)) %>% print()
+      return()
+    }
+    cat('\n```\n')
+    if (grepl("ttest", q$Code)){
+        capture_jmv(eval(parse(text = q$Code))$ttest)
+    } else if (grepl("anova", q$Code)){
+        capture_jmv(eval(parse(text = q$Code))$main)
+    } else if (grepl("cont", q$Code)){
+        capture_jmv(eval(parse(text = q$Code))$freqs)
+    } else if (grepl("corr", q$Code)){
+        capture_jmv(eval(parse(text = q$Code))$matrix)
+    }
+    cat('\n```\n')
+  }
+}
+
+formatMC <- function(q,qnum) {
+  
+  cat(qnum, '. ', q$Question, sep='')
+  cat(' \n')
+  cat(' \n')
+  
+  options <- c(q$CorrectAnswer,q$Lure1,q$Lure2,q$Lure3)
+  randorder <- sample(4)
+  cat('  \tA.',options[randorder[1]])
+  cat('  \n')
+  cat('  \tB.',options[randorder[2]])
+  cat('  \n')
+  cat('  \tC.',options[randorder[3]])
+  cat('  \n')
+  cat('  \tD.',options[randorder[4]])
+  cat('  \n')
+  optionLetters <- c('A','B','C','D')
+  correct <- optionLetters[which(randorder==1)]
+  correct
+}
+
+questions <- rio::import(here("Exams","questions2.xlsx"))
+```
+
+```{r selections}
+## Select MCs
+num_mc <- params$mcs
+questions <- questions %>% 
+  mutate(keep = case_when(Unit == 2 ~ 1,
+                          Unit == 1 & sample(c(TRUE, FALSE), sum(Unit == 1), .2) ~ 1,
+                          TRUE ~ 0)) %>% 
+  filter(keep == 1 | Unit == 2) %>% 
+  filter(row_number() %in% sample(1:nrow(.), num_mc)) %>% 
+  arrange(Unit)
+```
+
+```{r}
+gss <- rio::import("https://cehs-research.github.io/EDUC-7610/GSS_Data/Data/GSS_reduced_example.csv") %>% 
+  filter(row_number() %in% sample(1:nrow(.), 2000, replace = TRUE)) %>% 
+  filter(educ < 50) %>% mutate(marital = case_when(marital == "Married" ~ "Married", 
+                                                   TRUE ~ "Not Married"))
+```
+
+## Multiple Choice (2.5 pts each) {-}
+
+```{r presentQuestions, echo=FALSE, results="asis"}
+# Loop through questions
+# presenting them in the appropriate format and storing the correct answers
+print_questions <- function(questions){
+  correct.all <- character(length=nrow(questions))
+  order.all <- integer(length=nrow(questions))
+  for (n in c(1:nrow(questions))) {
+    cat('  \n')
+    q <- questions[n,]
+    correct <- formatMC(q,n)
+    correct.all[n] <- correct
+    order.all[n] <- n
+  }
+}
+print_questions(questions)
+```
+
+## Interpretation (25 pts)
+
+Let's say you are interested in understanding how watching The Office influence individuals' views of regarding awkward social interactions. You ask individuals how much they've watched The Office and present them with awkward social interactions (via video) to have them rate the awkwardness. You go through each step of the hypothesis test, you see no problems with the assumptions and have decided on an alpha of .05 for concluding significance. You think there may be an interaction between hours watched and whether they are a boss at a company. You also decide to control for age in the analysis. You assess the data and find the following results.
+
+- What analysis did you use?
+
+- What does the $R^2$ mean here?
+
+- Is the interaction significant? What does the interaction mean in general terms?
+
+- Using the plot, what is the effect of watching the office on awkwardness?
+
+
+
+```{r, comment = "                                   ", fig.align='right', fig.height = 2.3, fig.width=4}
+df <- tibble::tibble(
+  office = runif(100, 0, 20),
+  boss = rbinom(100, 1, .5),
+  age = runif(100, 20, 69),
+  awkwardness = -.2 * office + .07 * age + boss + .3*office*boss + 2*rnorm(100)
+)
+
+jmv::linReg(data = df, dep = awkwardness, covs = vars(office, age, boss),
+            blocks = list(list('office', 'age', 'boss', c('office', 'boss'))))$modelFit %>% 
+  capture_jmv()
+
+jmv::linReg(data = df, dep = awkwardness, covs = vars(office, age, boss),
+            blocks = list(list('office', 'age', 'boss', c('office', 'boss'))))$models %>% 
+  capture_jmv()
+
+df %>% 
+  mutate(boss = factor(boss, labels = c("No", "Yes"))) %>% 
+  ggplot(aes(office, awkwardness, group = boss, color = boss)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal()
+```
+
+
+
+
+\newpage
+
+# Output Page
+
+```{r presentOutput, echo=FALSE, results="asis"}
+# Loop through questions
+# presenting them in the appropriate format and storing the correct answers
+print_output <- function(questions){
+  correct.all <- character(length=nrow(questions))
+  order.all <- integer(length=nrow(questions))
+  for (n in c(1:nrow(questions))) {
+    cat('  \n')
+    q <- questions[n,]
+    code_chunks(q,n)
+    
+    if (n == 6){
+      cat("\\vspace{6pt}")
+    }
+    
+  }
+}
+print_output(questions)
+```
+
+
+```{r finishUp, echo=FALSE, eval = FALSE}
+questions$Key <- correct.all
+questions$Order <- order.all
+# Simplify the question key
+questions %>%
+  select(Order,Points,Question,CorrectAnswer,Key) -> questions.key
+# Write out questions file with key included
+write.csv(questions.key,file=paste0(questionsFile,"_withkey_v",seedNum,".csv"))
+```
